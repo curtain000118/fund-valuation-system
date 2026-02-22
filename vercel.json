@@ -10,15 +10,5 @@
   "env": {
     "FLASK_ENV": "production",
     "PYTHON_VERSION": "3.12"
-  },
-  "functions": {
-    "api/index.py": {
-      "memory": 1024,
-      "maxDuration": 10
-    },
-    "api/cron.py": {
-      "memory": 1024,
-      "maxDuration": 60
-    }
   }
 }
