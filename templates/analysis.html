@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据分析 - 基金实时估值系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .navbar-brand { font-weight: bold; font-size: 1.5rem; }
+        .card { border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .card-header { background-color: #fff; border-bottom: 2px solid #007bff; font-weight: bold; }
+        .profit { color: #dc3545; }
+        .loss { color: #28a745; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-graph-up"></i> 基金实时估值系统
+            </a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-house"></i> 首页</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/portfolio"><i class="bi bi-briefcase"></i> 持仓管理</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/alerts"><i class="bi bi-bell"></i> 预警提醒</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/analysis"><i class="bi bi-bar-chart"></i> 数据分析</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> 功能说明
+            </div>
+            <div class="card-body">
+                <p>数据分析功能正在开发中，即将推出以下功能：</p>
+                <ul>
+                    <li>持仓收益分析图表</li>
+                    <li>基金对比分析</li>
+                    <li>定投收益计算器</li>
+                    <li>风险评估报告</li>
+                    <li>资产配置建议</li>
+                </ul>
+                <p class="text-muted">敬请期待！</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-calculator"></i> 定投收益计算器
+                    </div>
+                    <div class="card-body">
+                        <form id="dipCalculator">
+                            <div class="mb-3">
+                                <label class="form-label">基金代码</label>
+                                <input type="text" class="form-control" id="dipFundCode" placeholder="例如：000001">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">每期投资金额（元）</label>
+                                <input type="number" class="form-control" id="dipAmount" value="1000">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">投资期数（月）</label>
+                                <input type="number" class="form-control" id="dipPeriods" value="12">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">开始日期</label>
+                                <input type="date" class="form-control" id="dipStartDate">
+                            </div>
+                            <button type="button" class="btn btn-primary w-100" onclick="calculateDIP()">
+                                计算收益
+                            </button>
+                        </form>
+                        <div id="dipResult" class="mt-3" style="display:none;">
+                            <hr>
+                            <h5>计算结果</h5>
+                            <p>总投资: <strong id="totalInvest">-</strong> 元</p>
+                            <p>当前市值: <strong id="currentValue">-</strong> 元</p>
+                            <p>总收益: <strong id="dipProfit">-</strong> 元</p>
+                            <p>收益率: <strong id="dipProfitRate">-</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-percent"></i> 收益率对比
+                    </div>
+                    <div class="card-body">
+                        <form id="compareForm">
+                            <div class="mb-3">
+                                <label class="form-label">基金代码（多个用逗号分隔）</label>
+                                <input type="text" class="form-control" id="compareFundCodes" 
+                                       placeholder="例如：000001,000002,000003">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">对比周期</label>
+                                <select class="form-select" id="comparePeriod">
+                                    <option value="7">近一周</option>
+                                    <option value="30" selected>近一月</option>
+                                    <option value="90">近三月</option>
+                                    <option value="365">近一年</option>
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-primary w-100" onclick="compareFunds()">
+                                开始对比
+                            </button>
+                        </form>
+                        <div id="compareResult" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function calculateDIP() {
+            const fundCode = document.getElementById('dipFundCode').value.trim();
+            const amount = parseFloat(document.getElementById('dipAmount').value);
+            const periods = parseInt(document.getElementById('dipPeriods').value);
+            
+            if (!fundCode) {
+                alert('请输入基金代码');
+                return;
+            }
+            
+            if (!amount || amount <= 0) {
+                alert('请输入有效的投资金额');
+                return;
+            }
+            
+            if (!periods || periods <= 0) {
+                alert('请输入有效的投资期数');
+                return;
+            }
+            
+            fetch(`/api/funds/${fundCode}/net-values?size=${periods}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.net_values || data.net_values.length === 0) {
+                        alert('未找到该基金的净值数据');
+                        return;
+                    }
+                    
+                    const netValues = data.net_values.slice(0, periods).reverse();
+                    
+                    let totalShares = 0;
+                    let totalInvest = 0;
+                    
+                    netValues.forEach(nv => {
+                        const shares = amount / nv.unit_net_value;
+                        totalShares += shares;
+                        totalInvest += amount;
+                    });
+                    
+                    const latestValue = netValues[netValues.length - 1].unit_net_value;
+                    const currentValue = totalShares * latestValue;
+                    const profit = currentValue - totalInvest;
+                    const profitRate = (profit / totalInvest * 100);
+                    
+                    document.getElementById('totalInvest').textContent = totalInvest.toFixed(2);
+                    document.getElementById('currentValue').textContent = currentValue.toFixed(2);
+                    
+                    const profitElement = document.getElementById('dipProfit');
+                    profitElement.textContent = profit.toFixed(2);
+                    profitElement.className = profit >= 0 ? 'profit' : 'loss';
+                    
+                    const rateElement = document.getElementById('dipProfitRate');
+                    rateElement.textContent = profitRate.toFixed(2) + '%';
+                    rateElement.className = profit >= 0 ? 'profit' : 'loss';
+                    
+                    document.getElementById('dipResult').style.display = 'block';
+                })
+                .catch(error => {
+                    alert('计算失败，请稍后重试');
+                });
+        }
+
+        function compareFunds() {
+            const codesStr = document.getElementById('compareFundCodes').value.trim();
+            const period = parseInt(document.getElementById('comparePeriod').value);
+            
+            if (!codesStr) {
+                alert('请输入基金代码');
+                return;
+            }
+            
+            const codes = codesStr.split(',').map(c => c.trim()).filter(c => c);
+            
+            if (codes.length === 0) {
+                alert('请输入有效的基金代码');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('compareResult');
+            resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
+            
+            const promises = codes.map(code => 
+                fetch(`/api/funds/${code}/valuation`)
+                    .then(response => response.json())
+                    .then(data => ({ code, data }))
+            );
+            
+            Promise.all(promises)
+                .then(results => {
+                    let html = '<table class="table table-sm table-hover"><thead><tr><th>代码</th><th>名称</th><th>单位净值</th><th>估算涨跌</th></tr></thead><tbody>';
+                    
+                    results.forEach(item => {
+                        if (item.data.error) {
+                            html += `<tr><td>${item.code}</td><td colspan="3" class="text-muted">未找到</td></tr>`;
+                        } else {
+                            const rate = item.data.estimated_growth_rate || 0;
+                            const rateClass = rate >= 0 ? 'profit' : 'loss';
+                            const rateText = (rate >= 0 ? '+' : '') + rate.toFixed(2) + '%';
+                            
+                            html += `
+                                <tr onclick="window.location.href='/fund/${item.code}'" style="cursor:pointer;">
+                                    <td><strong>${item.code}</strong></td>
+                                    <td>${item.data.fund_name}</td>
+                                    <td>${item.data.unit_net_value.toFixed(4)}</td>
+                                    <td class="${rateClass}">${rateText}</td>
+                                </tr>
+                            `;
+                        }
+                    });
+                    
+                    html += '</tbody></table>';
+                    resultDiv.innerHTML = html;
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = '<div class="alert alert-danger">对比失败，请稍后重试</div>';
+                });
+        }
+    </script>
+</body>
+</html>

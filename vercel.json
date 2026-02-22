@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "name": "fund-valuation-system",
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/cron.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/cron/(.*)",
+      "dest": "/api/cron.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.py"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/update-funds",
+      "schedule": "0 9,15 * * 1-5"
+    }
+  ],
+  "env": {
+    "FLASK_ENV": "production",
+    "PYTHON_VERSION": "3.12"
+  },
+  "functions": {
+    "api/index.py": {
+      "memory": 1024,
+      "maxDuration": 10
+    },
+    "api/cron.py": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
+}

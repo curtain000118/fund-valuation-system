@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>持仓管理 - 基金实时估值系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .navbar-brand { font-weight: bold; font-size: 1.5rem; }
+        .card { border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .card-header { background-color: #fff; border-bottom: 2px solid #007bff; font-weight: bold; }
+        .profit { color: #dc3545; }
+        .loss { color: #28a745; }
+        .position-card { padding: 20px; border-bottom: 1px solid #eee; }
+        .position-card:last-child { border-bottom: none; }
+        .position-card:hover { background-color: #f8f9fa; }
+        .fund-info { font-size: 1.1rem; }
+        .fund-code { font-weight: bold; color: #007bff; }
+        .fund-code-link { font-weight: bold; color: #007bff; text-decoration: none; }
+        .fund-code-link:hover { color: #0056b3; text-decoration: underline; }
+        .stat-item { margin-bottom: 10px; }
+        .stat-label { color: #666; font-size: 0.9rem; }
+        .stat-value { font-weight: bold; font-size: 1.1rem; }
+        .btn-group-sm > .btn {
+            padding: 0.25rem 0.5rem;
+            margin: 0 2px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-graph-up"></i> 基金实时估值系统
+            </a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-house"></i> 首页</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/portfolio"><i class="bi bi-briefcase"></i> 持仓管理</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/alerts"><i class="bi bi-bell"></i> 预警提醒</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/analysis"><i class="bi bi-bar-chart"></i> 数据分析</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">总市值</h5>
+                        <h2 id="totalMarketValue" class="text-primary">¥0.00</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">当日收益</h5>
+                        <h2 id="totalTodayProfit">¥0.00</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">持有收益</h5>
+                        <h2 id="totalProfit">¥0.00</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">收益率</h5>
+                        <h2 id="totalProfitRate">0.00%</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-briefcase"></i> 我的持仓</span>
+                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addPositionModal">
+                    <i class="bi bi-plus-circle"></i> 添加持仓
+                </button>
+            </div>
+            <div class="card-body" id="positionsList">
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                    <p class="mt-3">暂无持仓数据</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addPositionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">添加持仓</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addPositionForm">
+                        <div class="mb-3">
+                            <label class="form-label">基金代码 *</label>
+                            <input type="text" class="form-control" id="fundCode" required placeholder="例如：000001">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">持有份额 *</label>
+                            <input type="number" class="form-control" id="shares" step="0.01" required placeholder="例如：1000">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">成本价 *</label>
+                            <input type="number" class="form-control" id="costPrice" step="0.0001" required placeholder="例如：1.15">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">持有金额</label>
+                            <input type="number" class="form-control" id="marketValue" step="0.01" placeholder="当前市值（可选）">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">持有收益</label>
+                            <input type="number" class="form-control" id="profit" step="0.01" placeholder="当前收益（可选）">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">分红方式 *</label>
+                            <select class="form-select" id="dividendType">
+                                <option value="cash">现金分红</option>
+                                <option value="reinvest">红利再投资</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">购买日期</label>
+                            <input type="date" class="form-control" id="purchaseDate">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="btnAddPosition">添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editPositionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">修改持仓</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editPositionForm">
+                        <input type="hidden" id="editPositionId">
+                        <div class="mb-3">
+                            <label class="form-label">基金代码</label>
+                            <input type="text" class="form-control" id="editFundCode" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">基金名称</label>
+                            <input type="text" class="form-control" id="editFundName" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">持有份额 *</label>
+                            <input type="number" class="form-control" id="editShares" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">成本价 *</label>
+                            <input type="number" class="form-control" id="editCostPrice" step="0.0001" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">持有金额</label>
+                            <input type="number" class="form-control" id="editMarketValue" step="0.01" placeholder="当前市值">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">持有收益</label>
+                            <input type="number" class="form-control" id="editProfit" step="0.01" placeholder="当前收益">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">分红方式 *</label>
+                            <select class="form-select" id="editDividendType">
+                                <option value="cash">现金分红</option>
+                                <option value="reinvest">红利再投资</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">购买日期</label>
+                            <input type="date" class="form-control" id="editPurchaseDate">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="btnUpdatePosition">保存修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> 确认删除</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="deletePositionId">
+                    <p class="mb-0">确定要删除持仓 <strong id="deleteFundName"></strong> 吗？</p>
+                    <p class="text-muted mt-2 mb-0 small">此操作不可恢复</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="btnConfirmDelete">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let positionsData = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('页面加载完成，开始加载持仓数据...');
+            loadPositions();
+            
+            document.getElementById('btnAddPosition').addEventListener('click', addPosition);
+            document.getElementById('btnUpdatePosition').addEventListener('click', updatePosition);
+            document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
+            
+            // 添加表单验证
+            document.getElementById('addPositionForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addPosition();
+            });
+        });
+
+        function loadPositions() {
+            console.log('正在加载持仓数据...');
+            fetch('/api/positions')
+                .then(response => {
+                    console.log('持仓API响应状态:', response.status);
+                    if (!response.ok) {
+                        throw new Error('网络错误: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('持仓数据加载成功:', data);
+                    positionsData = data.positions || [];
+                    
+                    document.getElementById('totalMarketValue').textContent = '¥' + data.total_market_value.toFixed(2);
+                    
+                    const todayProfitElement = document.getElementById('totalTodayProfit');
+                    const totalTodayProfit = data.total_today_profit || 0;
+                    todayProfitElement.textContent = (totalTodayProfit >= 0 ? '+' : '') + '¥' + totalTodayProfit.toFixed(2);
+                    todayProfitElement.className = totalTodayProfit >= 0 ? 'profit' : 'loss';
+                    
+                    const profitElement = document.getElementById('totalProfit');
+                    profitElement.textContent = '¥' + data.total_profit.toFixed(2);
+                    profitElement.className = data.total_profit >= 0 ? 'profit' : 'loss';
+                    
+                    const rateElement = document.getElementById('totalProfitRate');
+                    rateElement.textContent = (data.total_profit_rate >= 0 ? '+' : '') + data.total_profit_rate.toFixed(2) + '%';
+                    rateElement.className = data.total_profit_rate >= 0 ? 'profit' : 'loss';
+                    
+                    const positionsList = document.getElementById('positionsList');
+                    
+                    if (positionsData.length > 0) {
+                        let html = '';
+                        positionsData.forEach(pos => {
+                            const fundName = escapeHtml(pos.fund_name || '');
+                            const fundCode = escapeHtml(pos.fund_code || '');
+                            const todayProfit = pos.today_profit;
+                            const todayProfitClass = todayProfit !== null ? (todayProfit >= 0 ? 'profit' : 'loss') : '';
+                            const todayProfitText = todayProfit !== null ? (todayProfit >= 0 ? '+' : '') + '¥' + todayProfit.toFixed(2) : '-';
+                            const dividendType = pos.dividend_type === 'reinvest' ? '红利再投资' : '现金分红';
+                            
+                            html += `
+                                <div class="position-card">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-2">
+                                            <div class="fund-info">
+                                                <a href="/fund/${fundCode}" class="fund-code-link">${fundCode}</a>
+                                                <div class="text-muted small">${fundName}</div>
+                                                <span class="badge bg-secondary small">${dividendType}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="stat-item">
+                                                <div class="stat-label">持有金额</div>
+                                                <div class="stat-value">¥${pos.market_value.toFixed(2)}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="stat-item">
+                                                <div class="stat-label">当日收益</div>
+                                                <div class="stat-value ${todayProfitClass}">${todayProfitText}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="stat-item">
+                                                <div class="stat-label">持有收益</div>
+                                                <div class="stat-value ${pos.profit >= 0 ? 'profit' : 'loss'}">
+                                                    ¥${pos.profit.toFixed(2)}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="stat-item">
+                                                <div class="stat-label">持有收益率</div>
+                                                <div class="stat-value ${pos.profit_rate >= 0 ? 'profit' : 'loss'}">
+                                                    ${pos.profit_rate >= 0 ? '+' : ''}${pos.profit_rate.toFixed(2)}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary btn-edit" data-id="${pos.position_id}" title="编辑">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger btn-delete" data-id="${pos.position_id}" data-name="${fundCode} - ${fundName}" title="删除">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        positionsList.innerHTML = html;
+                        
+                        document.querySelectorAll('.btn-edit').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                editPosition(parseInt(this.dataset.id));
+                            });
+                        });
+                        
+                        document.querySelectorAll('.btn-delete').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                showDeleteConfirm(parseInt(this.dataset.id), this.dataset.name);
+                            });
+                        });
+                    } else {
+                        positionsList.innerHTML = `
+                            <div class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                                <p class="mt-3">暂无持仓数据</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('加载持仓失败:', error);
+                    document.getElementById('positionsList').innerHTML = `
+                        <div class="alert alert-danger">加载持仓失败，请刷新页面重试</div>
+                    `;
+                });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addPosition() {
+            const fundCode = document.getElementById('fundCode').value.trim();
+            const shares = document.getElementById('shares').value;
+            const costPrice = document.getElementById('costPrice').value;
+            const marketValue = document.getElementById('marketValue').value;
+            const profit = document.getElementById('profit').value;
+            const dividendType = document.getElementById('dividendType').value;
+            const purchaseDate = document.getElementById('purchaseDate').value;
+            
+            console.log('添加持仓参数:', { fundCode, shares, costPrice, marketValue, profit, dividendType, purchaseDate });
+            
+            if (!fundCode || !shares || !costPrice) {
+                alert('请填写必填项');
+                return;
+            }
+            
+            const btn = document.getElementById('btnAddPosition');
+            btn.disabled = true;
+            btn.textContent = '添加中...';
+            
+            const data = {
+                fund_code: fundCode,
+                shares: parseFloat(shares),
+                cost_price: parseFloat(costPrice),
+                dividend_type: dividendType,
+                purchase_date: purchaseDate
+            };
+            
+            if (marketValue) {
+                data.market_value = parseFloat(marketValue);
+            }
+            if (profit) {
+                data.profit = parseFloat(profit);
+            }
+            
+            fetch('/api/positions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                console.log('添加持仓API响应状态:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('添加持仓API响应数据:', data);
+                if (data.message) {
+                    alert('添加成功');
+                    bootstrap.Modal.getInstance(document.getElementById('addPositionModal')).hide();
+                    document.getElementById('addPositionForm').reset();
+                    loadPositions();
+                } else {
+                    alert('添加失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('添加持仓失败:', error);
+                alert('添加失败，请稍后重试');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = '添加';
+            });
+        }
+
+        function editPosition(positionId) {
+            const position = positionsData.find(p => p.position_id === positionId);
+            
+            if (!position) {
+                alert('未找到持仓信息');
+                return;
+            }
+            
+            document.getElementById('editPositionId').value = positionId;
+            document.getElementById('editFundCode').value = position.fund_code;
+            document.getElementById('editFundName').value = position.fund_name;
+            document.getElementById('editShares').value = position.shares;
+            document.getElementById('editCostPrice').value = position.cost_price;
+            document.getElementById('editMarketValue').value = position.base_market_value || '';
+            document.getElementById('editProfit').value = position.profit || '';
+            document.getElementById('editDividendType').value = position.dividend_type || 'cash';
+            document.getElementById('editPurchaseDate').value = position.purchase_date || '';
+            
+            new bootstrap.Modal(document.getElementById('editPositionModal')).show();
+        }
+
+        function updatePosition() {
+            const positionId = document.getElementById('editPositionId').value;
+            const shares = document.getElementById('editShares').value;
+            const costPrice = document.getElementById('editCostPrice').value;
+            const marketValue = document.getElementById('editMarketValue').value;
+            const profit = document.getElementById('editProfit').value;
+            const dividendType = document.getElementById('editDividendType').value;
+            const purchaseDate = document.getElementById('editPurchaseDate').value;
+            
+            if (!shares || !costPrice) {
+                alert('请填写必填项');
+                return;
+            }
+            
+            const updateData = {
+                shares: parseFloat(shares),
+                cost_price: parseFloat(costPrice),
+                dividend_type: dividendType
+            };
+            
+            if (marketValue) {
+                updateData.market_value = parseFloat(marketValue);
+            } else {
+                updateData.market_value = null;
+            }
+            
+            if (profit) {
+                updateData.profit = parseFloat(profit);
+            } else {
+                updateData.profit = null;
+            }
+            
+            if (purchaseDate) {
+                updateData.purchase_date = purchaseDate;
+            }
+            
+            const btn = document.getElementById('btnUpdatePosition');
+            btn.disabled = true;
+            btn.textContent = '保存中...';
+            
+            fetch(`/api/positions/${positionId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updateData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert('修改成功');
+                    bootstrap.Modal.getInstance(document.getElementById('editPositionModal')).hide();
+                    loadPositions();
+                } else {
+                    alert('修改失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(error => {
+                alert('修改失败，请稍后重试');
+                console.error(error);
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = '保存修改';
+            });
+        }
+
+        function showDeleteConfirm(positionId, fundName) {
+            document.getElementById('deletePositionId').value = positionId;
+            document.getElementById('deleteFundName').textContent = fundName;
+            new bootstrap.Modal(document.getElementById('deleteConfirmModal')).show();
+        }
+
+        function confirmDelete() {
+            const positionId = document.getElementById('deletePositionId').value;
+            
+            const btn = document.getElementById('btnConfirmDelete');
+            btn.disabled = true;
+            btn.textContent = '删除中...';
+            
+            fetch(`/api/positions/${positionId}`, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(data => {
+                    bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal')).hide();
+                    alert('删除成功');
+                    loadPositions();
+                })
+                .catch(error => {
+                    alert('删除失败，请稍后重试');
+                    console.error(error);
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.textContent = '确认删除';
+                });
+        }
+    </script>
+</body>
+</html>

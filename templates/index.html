@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基金实时估值系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .navbar-brand {
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #fff;
+            border-bottom: 2px solid #007bff;
+            font-weight: bold;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .profit {
+            color: #dc3545;
+        }
+        .loss {
+            color: #28a745;
+        }
+        .search-box {
+            margin-bottom: 20px;
+        }
+        .fund-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.3s;
+        }
+        .fund-item:hover {
+            background-color: #f8f9fa;
+        }
+        .fund-code {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .fund-name {
+            color: #666;
+            margin-left: 10px;
+        }
+        .growth-rate {
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-graph-up"></i> 基金实时估值系统
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/"><i class="bi bi-house"></i> 首页</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/portfolio"><i class="bi bi-briefcase"></i> 持仓管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/alerts"><i class="bi bi-bell"></i> 预警提醒</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/analysis"><i class="bi bi-bar-chart"></i> 数据分析</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <i class="bi bi-wallet2" style="font-size: 2rem; color: #007bff;"></i>
+                        <div class="stat-value" id="totalMarketValue">¥0.00</div>
+                        <div class="text-muted">总市值</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <i class="bi bi-cash-stack" style="font-size: 2rem; color: #28a745;"></i>
+                        <div class="stat-value" id="totalCostValue">¥0.00</div>
+                        <div class="text-muted">总成本</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <i class="bi bi-graph-up-arrow" style="font-size: 2rem; color: #dc3545;"></i>
+                        <div class="stat-value" id="totalProfit">¥0.00</div>
+                        <div class="text-muted">总收益</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <i class="bi bi-percent" style="font-size: 2rem; color: #ffc107;"></i>
+                        <div class="stat-value" id="totalProfitRate">0.00%</div>
+                        <div class="text-muted">收益率</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-search"></i> 基金搜索
+            </div>
+            <div class="card-body">
+                <div class="search-box">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="searchInput" 
+                               placeholder="输入基金代码或名称搜索...">
+                        <button class="btn btn-primary" type="button" id="searchBtn">
+                            <i class="bi bi-search"></i> 搜索
+                        </button>
+                    </div>
+                </div>
+                <div id="searchResults"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-trophy"></i> 热门基金排行
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <select class="form-select" id="fundTypeSelect">
+                        <option value="all">全部类型</option>
+                        <option value="gp">股票型</option>
+                        <option value="hh">混合型</option>
+                        <option value="zq">债券型</option>
+                        <option value="zs">指数型</option>
+                        <option value="qdii">QDII</option>
+                    </select>
+                </div>
+                <div id="fundRankList">
+                    <div class="loading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPortfolioSummary();
+            loadFundRank();
+            
+            document.getElementById('searchBtn').addEventListener('click', searchFunds);
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchFunds();
+                }
+            });
+            
+            document.getElementById('fundTypeSelect').addEventListener('change', loadFundRank);
+        });
+
+        function loadPortfolioSummary() {
+            fetch('/api/portfolio/summary')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('totalMarketValue').textContent = 
+                        '¥' + data.total_market_value.toFixed(2);
+                    document.getElementById('totalCostValue').textContent = 
+                        '¥' + data.total_cost_value.toFixed(2);
+                    
+                    const profitElement = document.getElementById('totalProfit');
+                    profitElement.textContent = '¥' + data.total_profit.toFixed(2);
+                    profitElement.className = 'stat-value ' + (data.total_profit >= 0 ? 'profit' : 'loss');
+                    
+                    const rateElement = document.getElementById('totalProfitRate');
+                    rateElement.textContent = data.total_profit_rate.toFixed(2) + '%';
+                    rateElement.className = 'stat-value ' + (data.total_profit_rate >= 0 ? 'profit' : 'loss');
+                });
+        }
+
+        function searchFunds() {
+            const keyword = document.getElementById('searchInput').value.trim();
+            
+            if (!keyword) {
+                alert('请输入搜索关键词');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '<div class="loading"><div class="spinner-border text-primary"></div></div>';
+            
+            fetch(`/api/funds/search?keyword=${encodeURIComponent(keyword)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.funds && data.funds.length > 0) {
+                        let html = '<div class="list-group">';
+                        data.funds.forEach(fund => {
+                            html += `
+                                <div class="fund-item" onclick="window.location.href='/fund/${fund.fund_code}'">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <span class="fund-code">${fund.fund_code}</span>
+                                            <span class="fund-name">${fund.fund_name}</span>
+                                        </div>
+                                        <span class="badge bg-secondary">${fund.fund_type}</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        resultsDiv.innerHTML = html;
+                    } else {
+                        resultsDiv.innerHTML = '<div class="alert alert-info">未找到相关基金</div>';
+                    }
+                })
+                .catch(error => {
+                    resultsDiv.innerHTML = '<div class="alert alert-danger">搜索失败，请稍后重试</div>';
+                });
+        }
+
+        function loadFundRank() {
+            const fundType = document.getElementById('fundTypeSelect').value;
+            const rankList = document.getElementById('fundRankList');
+            
+            rankList.innerHTML = '<div class="loading"><div class="spinner-border text-primary"></div></div>';
+            
+            fetch(`/api/funds/rank?type=${fundType}&size=20`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.funds && data.funds.length > 0) {
+                        let html = '<div class="table-responsive"><table class="table table-hover">';
+                        html += '<thead><tr><th>代码</th><th>名称</th><th>类型</th><th>单位净值</th><th>日涨跌</th><th>近一周</th><th>近一月</th></tr></thead><tbody>';
+                        
+                        data.funds.forEach(fund => {
+                            const dailyRate = fund.daily_growth_rate || 0;
+                            const weeklyRate = fund.weekly_growth_rate || 0;
+                            const monthlyRate = fund.monthly_growth_rate || 0;
+                            
+                            html += `
+                                <tr onclick="window.location.href='/fund/${fund.fund_code}'" style="cursor:pointer;">
+                                    <td><strong>${fund.fund_code}</strong></td>
+                                    <td>${fund.fund_name}</td>
+                                    <td><span class="badge bg-secondary">${fund.fund_type}</span></td>
+                                    <td>${fund.unit_net_value.toFixed(4)}</td>
+                                    <td class="${dailyRate >= 0 ? 'profit' : 'loss'}">${dailyRate >= 0 ? '+' : ''}${dailyRate.toFixed(2)}%</td>
+                                    <td class="${weeklyRate >= 0 ? 'profit' : 'loss'}">${weeklyRate >= 0 ? '+' : ''}${weeklyRate.toFixed(2)}%</td>
+                                    <td class="${monthlyRate >= 0 ? 'profit' : 'loss'}">${monthlyRate >= 0 ? '+' : ''}${monthlyRate.toFixed(2)}%</td>
+                                </tr>
+                            `;
+                        });
+                        
+                        html += '</tbody></table></div>';
+                        rankList.innerHTML = html;
+                    } else {
+                        rankList.innerHTML = '<div class="alert alert-info">暂无数据</div>';
+                    }
+                })
+                .catch(error => {
+                    rankList.innerHTML = '<div class="alert alert-danger">加载失败，请稍后重试</div>';
+                });
+        }
+    </script>
+</body>
+</html>
