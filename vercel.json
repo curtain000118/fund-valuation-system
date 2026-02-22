@@ -4,7 +4,7 @@
   "crons": [
     {
       "path": "/api/cron/update-funds",
-      "schedule": "0 9,15 * * 1-5"
+      "schedule": "0 15 * * *"
     }
   ],
   "env": {
